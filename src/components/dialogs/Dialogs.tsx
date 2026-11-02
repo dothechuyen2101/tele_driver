@@ -1,6 +1,6 @@
 import { useUi } from '@/stores/ui'
 import { ForwardDialog } from './ForwardDialog'
-import { MoveDialog } from './MoveDialog'
+import { FolderPickerDialog, MoveDialog } from './MoveDialog'
 import { SettingsDialog } from './SettingsDialog'
 import { ConfirmDialog, DetailsDialog, NewFolderDialog, RenameDialog } from './SimpleDialogs'
 import { VaultDialog } from './VaultDialog'
@@ -25,6 +25,8 @@ export function Dialogs() {
       return <DetailsDialog item={dialog.item} onClose={close} />
     case 'vault':
       return <VaultDialog mode={dialog.mode} then={dialog.then} onClose={close} />
+    case 'pickFolder':
+      return <FolderPickerDialog title={dialog.title} confirmLabel={dialog.confirmLabel} initial={dialog.initial} onPick={dialog.onPick} onClose={close} />
     case 'settings':
       return <SettingsDialog tab={dialog.tab} onClose={close} />
   }

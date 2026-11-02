@@ -9,7 +9,7 @@ import type { DriveFile } from './model'
 
 export type ForwardMode = 'copy' | 'forward'
 
-function inputMediaOf(msg: Api.Message): Api.TypeInputMedia {
+export function inputMediaOf(msg: Api.Message): Api.TypeInputMedia {
   const media = msg.media
   if (media instanceof Api.MessageMediaDocument && media.document instanceof Api.Document) {
     const d = media.document

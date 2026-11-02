@@ -7,6 +7,7 @@
  *   aad = chunkIndex (u32 BE) ‖ isLast (u8)        — blocks reordering and truncation
  */
 import { fromBase64Url, fromUtf8, toArrayBuffer, toBase64Url, utf8 } from '@/lib/bytes'
+import type { ByteSource } from '@/lib/byteSource'
 
 export const CIPHER_CHUNK = 1024 * 1024
 export const TAG_BYTES = 16
@@ -81,23 +82,24 @@ export async function decryptMeta(key: CryptoKey, nonce: Uint8Array, encoded: st
 }
 
 /**
- * Produces the encrypted byte stream of a Blob lazily, for any (offset, length)
- * window, caching a few recent chunks because uploads read 512 KiB halves.
+ * Produces the encrypted byte stream of a plaintext source lazily, for any
+ * (offset, length) window, caching a few recent chunks because uploads read
+ * 512 KiB halves of each 1 MiB chunk.
  */
-export class BlobEncryptor {
+export class SourceEncryptor implements ByteSource {
   private cache = new Map<number, Promise<Uint8Array>>()
   readonly plainSize: number
   readonly size: number
-  private readonly blob: Blob
+  private readonly source: ByteSource
   private readonly key: CryptoKey
   private readonly nonce: Uint8Array
 
-  constructor(blob: Blob, key: CryptoKey, nonce: Uint8Array) {
-    this.blob = blob
+  constructor(source: ByteSource, key: CryptoKey, nonce: Uint8Array) {
+    this.source = source
     this.key = key
     this.nonce = nonce
-    this.plainSize = blob.size
-    this.size = cipherSize(blob.size)
+    this.plainSize = source.size
+    this.size = cipherSize(source.size)
   }
 
   private chunk(index: number) {
@@ -106,10 +108,7 @@ export class BlobEncryptor {
       const start = index * PLAIN_CHUNK
       const len = plainChunkLength(index, this.plainSize)
       const last = index === chunkCount(this.plainSize) - 1
-      p = this.blob
-        .slice(start, start + len)
-        .arrayBuffer()
-        .then((buf) => encryptChunk(this.key, this.nonce, index, last, new Uint8Array(buf)))
+      p = this.source.read(start, len).then((plain) => encryptChunk(this.key, this.nonce, index, last, plain))
       this.cache.set(index, p)
       if (this.cache.size > 16) this.cache.delete(this.cache.keys().next().value!)
     }

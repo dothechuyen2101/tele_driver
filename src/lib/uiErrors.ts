@@ -21,6 +21,20 @@ const KNOWN: Record<string, string> = {
   CHANNELS_TOO_MUCH: 'errors.channelsTooMuch',
   WRONG_PASSWORD: 'errors.wrongPassword',
   FILE_TRUNCATED: 'errors.fileTruncated',
+  BAD_LINK: 'errors.badLink',
+  JOIN_FIRST: 'errors.joinFirst',
+  INVITE_HASH_EXPIRED: 'errors.joinFirst',
+  USERNAME_NOT_OCCUPIED: 'errors.usernameNotFound',
+  USERNAME_INVALID: 'errors.usernameNotFound',
+  SAME_AS_STORAGE: 'errors.sameAsStorage',
+  GOOGLE_NOT_CONFIGURED: 'errors.googleNotConfigured',
+  GOOGLE_AUTH: 'errors.googleAuth',
+  GOOGLE_POPUP_CLOSED: 'errors.googlePopupClosed',
+  GOOGLE_POPUP_BLOCKED: 'errors.googlePopupBlocked',
+  GOOGLE_SCRIPT_FAILED: 'errors.googleScript',
+  RANGE_UNSUPPORTED: 'errors.rangeUnsupported',
+  CHAT_FORWARDS_RESTRICTED: 'errors.forwardsRestricted',
+  SHORT_READ: 'errors.fileTruncated',
 }
 
 export function describeError(err: unknown): string {
@@ -29,6 +43,7 @@ export function describeError(err: unknown): string {
     const seconds = Number(code.split('_').pop()) || (err as { seconds?: number }).seconds || 0
     return i18n.t('errors.flood', { seconds })
   }
+  if (code.startsWith('GOOGLE_HTTP_')) return i18n.t('errors.googleHttp', { status: code.slice(12) })
   const key = KNOWN[code]
   if (key) return i18n.t(key)
   if (/OperationError|decrypt/i.test(code)) return i18n.t('errors.decryptFailed')

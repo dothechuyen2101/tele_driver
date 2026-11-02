@@ -24,6 +24,7 @@ export type DialogState =
   | { kind: 'settings'; tab?: 'general' | 'security' | 'storage' | 'account' }
   | { kind: 'vault'; mode: 'create' | 'unlock' | 'change'; then?: () => void }
   | { kind: 'details'; item: DriveItem }
+  | { kind: 'pickFolder'; title: string; confirmLabel: string; initial: number; onPick: (folderId: number) => void }
 
 interface UiState {
   view: 'grid' | 'list'

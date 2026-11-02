@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, CircleAlert, CircleCheck, Lock, RotateCcw, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, Import, ChevronDown, CircleAlert, CircleCheck, Lock, RotateCcw, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { formatBytes, formatEta, formatSpeed } from '@/lib/format'
 import { describeError } from '@/lib/uiErrors'
@@ -12,7 +12,9 @@ function Row({ t: item }: { t: Transfer }) {
   const cancel = useTransfers((s) => s.cancel)
   const pct = item.size ? (item.done / item.size) * 100 : 0
   const active = item.status === 'running' || item.status === 'queued'
-  const Icon = item.kind === 'upload' ? ArrowUpFromLine : ArrowDownToLine
+  const Icon = item.kind === 'upload' ? ArrowUpFromLine : item.kind === 'import' ? Import : ArrowDownToLine
+  const items = item.unit === 'items'
+  const flood = item.detail?.startsWith('FLOOD_WAIT_') ? Number(item.detail.slice(11)) : 0
   return (
     <div className="grid gap-1.5 border-b px-4 py-2.5 last:border-b-0">
       <div className="flex items-center gap-2.5">
@@ -47,14 +49,17 @@ function Row({ t: item }: { t: Transfer }) {
           <Progress value={pct} indeterminate={item.status === 'queued' || (!item.size && item.done === 0)} />
           <div className="flex justify-between text-[11px] text-muted-foreground">
             <span>
-              {item.status === 'queued' ? t('transfers.queued') : `${formatBytes(item.done)} / ${formatBytes(item.size)}`}
+              {item.status === 'queued' ? t('transfers.queued') : items ? t('transfers.items', { done: item.done, total: item.size }) : `${formatBytes(item.done)} / ${formatBytes(item.size)}`}
             </span>
-            {item.status === 'running' && item.speed > 0 && (
+            {item.status === 'running' && !items && item.speed > 0 && (
               <span>
                 {formatSpeed(item.speed)} · {formatEta((item.size - item.done) / item.speed)}
               </span>
             )}
           </div>
+          {items && item.detail && (
+            <p className="truncate text-[11px] text-muted-foreground">{flood ? t('imports.floodWait', { seconds: flood }) : item.detail}</p>
+          )}
         </>
       )}
       {item.status === 'error' && <p className="truncate text-[11px] text-destructive">{describeError(new Error(item.error))}</p>}

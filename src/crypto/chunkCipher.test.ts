@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { blobSource } from '@/lib/byteSource'
 import {
-  BlobEncryptor,
+  SourceEncryptor,
   CIPHER_CHUNK,
   PLAIN_CHUNK,
   chunkCount,
@@ -30,7 +31,7 @@ describe('chunk cipher', () => {
   it('encrypts a blob stream and decrypts each chunk independently', async () => {
     const { dek, nonce } = await newFileKey()
     const plain = sample(PLAIN_CHUNK * 2 + 1234)
-    const enc = new BlobEncryptor(new Blob([plain]), dek, nonce)
+    const enc = new SourceEncryptor(blobSource(new Blob([plain])), dek, nonce)
     expect(enc.size).toBe(cipherSize(plain.length))
 
     // Read in odd windows like the uploader does, then reassemble.
@@ -60,7 +61,7 @@ describe('chunk cipher', () => {
   it('rejects reordered or truncated chunks', async () => {
     const { dek, nonce } = await newFileKey()
     const plain = sample(PLAIN_CHUNK + 10)
-    const enc = new BlobEncryptor(new Blob([plain]), dek, nonce)
+    const enc = new SourceEncryptor(blobSource(new Blob([plain])), dek, nonce)
     const first = await enc.read(0, CIPHER_CHUNK)
     // Chunk 0 presented as the last chunk (truncation attack) must fail.
     await expect(decryptChunk(dek, nonce, 0, true, first)).rejects.toBeTruthy()

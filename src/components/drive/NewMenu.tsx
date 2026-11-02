@@ -1,5 +1,6 @@
 import { useRef, type ReactNode } from 'react'
-import { FileUp, FolderPlus, FolderUp } from 'lucide-react'
+import { FileUp, FolderPlus, FolderUp, Import } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { useTranslation } from 'react-i18next'
 import { startUpload } from '@/app/actions'
 import { useCurrentFolderId } from '@/hooks/useView'
@@ -10,6 +11,7 @@ import { ActionDropdown } from '../ui/menu'
 export function NewMenu({ children, align = 'start' }: { children: ReactNode; align?: 'start' | 'end' }) {
   const { t } = useTranslation()
   const folderId = useCurrentFolderId()
+  const navigate = useNavigate()
   const fileInput = useRef<HTMLInputElement>(null)
   const dirInput = useRef<HTMLInputElement>(null)
 
@@ -26,6 +28,7 @@ export function NewMenu({ children, align = 'start' }: { children: ReactNode; al
           { key: 'folder', label: t('new.folder'), icon: <FolderPlus />, onSelect: () => useUi.getState().openDialog({ kind: 'newFolder', parentId: folderId }) },
           { key: 'files', label: t('new.uploadFiles'), icon: <FileUp />, separatorBefore: true, onSelect: () => fileInput.current?.click() },
           { key: 'dir', label: t('new.uploadFolder'), icon: <FolderUp />, onSelect: () => dirInput.current?.click() },
+          { key: 'import', label: t('new.import'), icon: <Import />, separatorBefore: true, onSelect: () => navigate('/import') },
         ]}
       >
         {children}

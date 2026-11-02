@@ -50,6 +50,25 @@ export interface DriveFile {
 
 export type DriveItem = DriveFolder | DriveFile
 
+/** A followed source (`#td_sub`): a Telegram chat or a Google Drive folder. */
+export interface Subscription {
+  msgId: number
+  entry: Entry
+  /** Chat key (c123, g45, u67, self) or `gd:<folderId>`. */
+  source: string
+  accessHash: string
+  title: string
+  folderId: number
+  /** Media kinds to import: d(ocuments) p(hotos) v(ideos) a(udio). */
+  kinds: string
+  /** Last source message id already handled (Telegram). */
+  last: number
+  /** Runs by itself while the app is open. */
+  auto: boolean
+  paused: boolean
+  lastRun?: number
+}
+
 export interface VaultRecord {
   msgId: number
   salt: string
@@ -71,6 +90,9 @@ export interface DriveIndex {
   trashed: DriveItem[]
   /** Patch entries keyed by the message id they target. */
   patches: Map<number, Entry[]>
+  /** Import origins (`s=`) already present, including trashed files → file key. */
+  sources: Map<string, string>
+  subs: Subscription[]
   vault?: VaultRecord
   totalSize: number
   fileCount: number
@@ -83,6 +105,8 @@ export const EMPTY_INDEX: DriveIndex = {
   childFiles: new Map(),
   trashed: [],
   patches: new Map(),
+  sources: new Map(),
+  subs: [],
   totalSize: 0,
   fileCount: 0,
 }
@@ -94,9 +118,13 @@ function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
 }
 
 function defaultName(entry: Entry) {
-  const m = entry.media!
+  return mediaFileName(entry.media!, entry.date)
+}
+
+/** File name of a Telegram media: its own name, or a dated one for photos and unnamed files. */
+export function mediaFileName(m: MediaInfo, date: number) {
   if (m.fileName) return m.fileName
-  const d = new Date(entry.date * 1000)
+  const d = new Date(date * 1000)
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}_${String(
     d.getHours(),
   ).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}${String(d.getSeconds()).padStart(2, '0')}`
@@ -126,6 +154,8 @@ export function buildIndex(entries: Entry[], decrypted: ReadonlyMap<string, Decr
     childFiles: new Map(),
     trashed: [],
     patches,
+    sources: new Map(),
+    subs: [],
     totalSize: 0,
     fileCount: 0,
   }
@@ -146,6 +176,23 @@ export function buildIndex(entries: Entry[], decrypted: ReadonlyMap<string, Decr
         date: e.date,
         entry: e,
       })
+    } else if (e.kind === 'sub') {
+      const f = effective(e)
+      if (f.c) {
+        index.subs.push({
+          msgId: e.msgId,
+          entry: e,
+          source: f.c,
+          accessHash: f.h ?? '',
+          title: f.n || f.c,
+          folderId: parseFolderRef(f.f),
+          kinds: f.k || 'dpva',
+          last: parseIntField(f.l) ?? 0,
+          auto: f.a === '1',
+          paused: f.p === '1',
+          lastRun: parseIntField(f.t),
+        })
+      }
     } else if (e.kind === 'vault' && !index.vault) {
       const f = effective(e)
       if (f.s && f.w) index.vault = { msgId: e.msgId, salt: f.s, iterations: parseIntField(f.it) ?? 600_000, wrapped: f.w }
@@ -222,6 +269,7 @@ function addFile(
   const mime = enc ? (meta?.mime ?? 'application/octet-stream') : guessMime(name, media.mime)
   const streamSize = parts.reduce((n, p) => n + (p.entry.media?.size ?? 0), 0)
   const complete = parts.length === partCount && parts.every((p, i) => p.index === i + 1)
+  if (f.s) index.sources.set(f.s, key)
   index.files.set(key, {
     type: 'file',
     key,

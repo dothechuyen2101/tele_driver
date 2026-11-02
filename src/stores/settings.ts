@@ -12,6 +12,8 @@ interface SettingsState {
   /** Remove the TeleDriver tag line from captions when forwarding. */
   cleanForward: boolean
   uploadConcurrency: number
+  /** Overrides the deployment's Google Drive config (VITE_GOOGLE_*). */
+  google?: { clientId: string; apiKey: string; appId: string }
   setTheme: (t: ThemePref) => void
   set: (patch: Partial<Omit<SettingsState, 'set' | 'setTheme'>>) => void
 }
@@ -58,6 +60,7 @@ export const useSettings = create<SettingsState>()(
         encryptAll: s.encryptAll,
         cleanForward: s.cleanForward,
         uploadConcurrency: s.uploadConcurrency,
+        google: s.google,
       }),
     },
   ),

@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import {
   Archive,
+  Import,
   Bookmark,
   ChevronRight,
   Clock,
@@ -208,6 +209,7 @@ export function Sidebar() {
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto scrollbar-thin">
         <FolderTree />
         <NavItem to="/recent" icon={<Clock />} label={t('nav.recent')} />
+        <NavItem to="/import" icon={<Import />} label={t('nav.import')} />
         <div className="mt-3 mb-1 px-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{t('nav.smart')}</div>
         {SMART.map(({ category, icon: Icon, color }) => (
           <NavItem key={category} to={`/smart/${category}`} icon={<Icon className={color} />} label={t(`category.${category}`)} />

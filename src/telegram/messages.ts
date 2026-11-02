@@ -6,12 +6,12 @@ import { entryId } from '@/db/db'
 import { toBase64Url } from '@/lib/bytes'
 import { parseTagged } from '@/drive/metadata'
 import { getClient } from './client'
-import { inputChannel, inputPeer, type StorageRef } from './peers'
+import { inputChannel, inputPeer, type PeerRef, type StorageRef } from './peers'
 
 type BigLike = number | { toJSNumber(): number }
 const num = (v: BigLike | undefined | null) => (v == null ? 0 : typeof v === 'number' ? v : v.toJSNumber())
 
-export async function getHistoryPage(ref: StorageRef, opts: { offsetId?: number; minId?: number; limit?: number }) {
+export async function getHistoryPage(ref: PeerRef, opts: { offsetId?: number; minId?: number; limit?: number }) {
   const res = await getClient().invoke(
     new Api.messages.GetHistory({
       peer: inputPeer(ref),
@@ -29,7 +29,7 @@ export async function getHistoryPage(ref: StorageRef, opts: { offsetId?: number;
   return { messages: res.messages, count }
 }
 
-export async function fetchMessages(ref: StorageRef, ids: number[]): Promise<Map<number, Api.Message>> {
+export async function fetchMessages(ref: PeerRef, ids: number[]): Promise<Map<number, Api.Message>> {
   const out = new Map<number, Api.Message>()
   for (let i = 0; i < ids.length; i += 100) {
     const batch = ids.slice(i, i + 100).map((id) => new Api.InputMessageID({ id }))

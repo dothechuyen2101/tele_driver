@@ -92,3 +92,23 @@ describe('buildIndex', () => {
     expect(unlocked.files.get('m:4')).toMatchObject({ name: 'a.pdf', locked: false, category: 'document' })
   })
 })
+
+describe('imports', () => {
+  it('records import origins, including trashed files', () => {
+    const idx = buildIndex([file(1, { s: 'tg:c5:10' }), file(2, { s: 'gd:abc', t: '1700000000' }), file(3, {})])
+    expect(idx.sources.get('tg:c5:10')).toBe('m:1')
+    expect(idx.sources.get('gd:abc')).toBe('m:2')
+    expect(idx.sources.size).toBe(2)
+  })
+
+  it('reads followed sources and their patches', () => {
+    const sub: Entry = {
+      id: 'self:7', chatKey: 'self', msgId: 7, kind: 'sub', date: 1, userText: '', canEdit: false,
+      fields: { c: 'c123', h: '999', n: 'News', f: '4', k: 'dv', l: '50', a: '1' },
+    }
+    const idx = buildIndex([sub, patch(8, { m: '7', l: '75', t: '1700000000' })])
+    expect(idx.subs).toEqual([
+      expect.objectContaining({ msgId: 7, source: 'c123', accessHash: '999', title: 'News', folderId: 4, kinds: 'dv', last: 75, auto: true, paused: false, lastRun: 1700000000 }),
+    ])
+  })
+})

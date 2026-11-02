@@ -4,7 +4,11 @@ export type TransferStatus = 'queued' | 'running' | 'done' | 'error' | 'canceled
 
 export interface Transfer {
   id: string
-  kind: 'upload' | 'download'
+  kind: 'upload' | 'download' | 'import'
+  /** Imports count files instead of bytes. */
+  unit?: 'bytes' | 'items'
+  /** Secondary line, e.g. the file an import is working on. */
+  detail?: string
   name: string
   size: number
   done: number

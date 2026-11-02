@@ -5,32 +5,46 @@ import { moveTo } from '@/app/actions'
 import { canMoveInto, createFolder } from '@/drive/ops'
 import { folderPath, type DriveItem } from '@/drive/model'
 import { reportError } from '@/lib/uiErrors'
-import { cn } from '@/lib/utils'
 import { useDrive } from '@/stores/app'
 import { Button } from '../ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader } from '../ui/dialog'
 import { Input } from '../ui/input'
 import { Spinner } from '../ui/misc'
 
-export function MoveDialog({ items, onClose }: { items: DriveItem[]; onClose: () => void }) {
+export interface FolderPickerProps {
+  title: string
+  confirmLabel: string
+  initial: number
+  /** Folders that cannot be entered (e.g. the folders being moved). */
+  disabledIds?: ReadonlySet<number>
+  isAllowed?: (folderId: number) => boolean
+  onPick: (folderId: number) => void | Promise<void>
+  onClose: () => void
+}
+
+/** Browse the folder tree and pick a destination; can create folders on the way. */
+export function FolderPickerDialog({ title, confirmLabel, initial, disabledIds, isAllowed, onPick, onClose }: FolderPickerProps) {
   const { t } = useTranslation()
   const index = useDrive((s) => s.index)
-  const start = items[0]?.type === 'folder' ? items[0].parentId : (items[0]?.folderId ?? 0)
-  const [cwd, setCwd] = useState(start)
+  const [cwd, setCwd] = useState(initial)
   const [creating, setCreating] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const moving = useMemo(() => new Set(items.filter((i) => i.type === 'folder').map((i) => i.id)), [items])
   const children = useMemo(
     () => (index.childFolders.get(cwd) ?? []).filter((f) => !f.trashedAt).sort((a, b) => a.name.localeCompare(b.name)),
     [index, cwd],
   )
   const path = folderPath(index, cwd)
-  const allowed = canMoveInto(items, cwd)
+  const allowed = isAllowed ? isAllowed(cwd) : true
 
   const submit = async () => {
     setBusy(true)
-    onClose()
-    await moveTo(items, cwd)
+    try {
+      await onPick(cwd)
+      onClose()
+    } catch (err) {
+      reportError(err)
+      setBusy(false)
+    }
   }
 
   const makeFolder = async () => {
@@ -45,9 +59,9 @@ export function MoveDialog({ items, onClose }: { items: DriveItem[]; onClose: ()
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
+    <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
       <DialogContent className="max-w-md gap-3">
-        <DialogHeader title={t('move.title', { count: items.length })} />
+        <DialogHeader title={title} />
         <div className="flex items-center gap-1 text-sm">
           {cwd !== 0 && (
             <Button variant="ghost" size="icon-sm" onClick={() => setCwd(path.at(-2)?.id ?? 0)} aria-label={t('common.back')}>
@@ -63,22 +77,19 @@ export function MoveDialog({ items, onClose }: { items: DriveItem[]; onClose: ()
               {t('move.rootOnly')}
             </div>
           )}
-          {children.map((f) => {
-            const disabled = moving.has(f.id)
-            return (
-              <button
-                key={f.id}
-                type="button"
-                disabled={disabled}
-                onClick={() => setCwd(f.id)}
-                className={cn('flex w-full items-center gap-3 border-b px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-accent disabled:opacity-40')}
-              >
-                {f.encrypted ? <FolderLock className="size-4 text-amber-500" /> : <Folder className="size-4 text-amber-500" />}
-                <span className="flex-1 truncate">{f.name}</span>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </button>
-            )
-          })}
+          {children.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              disabled={disabledIds?.has(f.id)}
+              onClick={() => setCwd(f.id)}
+              className="flex w-full items-center gap-3 border-b px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-accent disabled:opacity-40"
+            >
+              {f.encrypted ? <FolderLock className="size-4 text-amber-500" /> : <Folder className="size-4 text-amber-500" />}
+              <span className="flex-1 truncate">{f.name}</span>
+              <ChevronRight className="size-4 text-muted-foreground" />
+            </button>
+          ))}
           {creating !== null && (
             <form
               className="flex items-center gap-2 p-2"
@@ -102,11 +113,31 @@ export function MoveDialog({ items, onClose }: { items: DriveItem[]; onClose: ()
             </Button>
             <Button onClick={() => void submit()} disabled={!allowed || busy}>
               {busy && <Spinner />}
-              {t('move.here')}
+              {confirmLabel}
             </Button>
           </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+export function MoveDialog({ items, onClose }: { items: DriveItem[]; onClose: () => void }) {
+  const { t } = useTranslation()
+  const moving = useMemo(() => new Set(items.filter((i) => i.type === 'folder').map((i) => i.id)), [items])
+  const initial = items[0]?.type === 'folder' ? items[0].parentId : (items[0]?.folderId ?? 0)
+  return (
+    <FolderPickerDialog
+      title={t('move.title', { count: items.length })}
+      confirmLabel={t('move.here')}
+      initial={initial}
+      disabledIds={moving}
+      isAllowed={(id) => canMoveInto(items, id)}
+      onPick={(id) => {
+        // The dialog closes right away; progress shows as a toast.
+        void moveTo(items, id)
+      }}
+      onClose={onClose}
+    />
   )
 }

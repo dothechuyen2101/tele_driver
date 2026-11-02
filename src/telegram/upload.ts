@@ -4,26 +4,10 @@ import { FileUploader } from 'teleproto/client/files/FileUploader'
 import { rememberUpload } from 'teleproto/client/files/uploadRegistry'
 import { choosePartSize, MAX_PART_SIZE } from 'teleproto/client/files/PartsManager'
 import { Buffer } from 'teleproto/platform/index'
+import { blobSource, type ByteSource } from '@/lib/byteSource'
 import { getClient } from './client'
 import { extractMessages, fetchMessages } from './messages'
 import { inputPeer, type StorageRef } from './peers'
-
-/** Something that can hand out bytes by offset, e.g. a Blob or an encrypting view of one. */
-export interface ByteSource {
-  size: number
-  read(offset: number, length: number): Promise<Uint8Array>
-}
-
-export function blobSource(blob: Blob, start = 0, size = blob.size - start): ByteSource {
-  return {
-    size,
-    read: async (offset, length) => new Uint8Array(await blob.slice(start + offset, start + Math.min(offset + length, size)).arrayBuffer()),
-  }
-}
-
-export function subSource(source: ByteSource, start: number, size: number): ByteSource {
-  return { size, read: (offset, length) => source.read(start + offset, Math.min(length, size - offset)) }
-}
 
 /** Telegram's per-file part limit: 4000 parts (2000 MiB), 8000 with Premium. */
 export function maxUploadParts() {
@@ -92,21 +76,14 @@ export interface SendDocumentOptions {
   forceFile: boolean
 }
 
-export async function sendDocument(ref: StorageRef, file: Api.TypeInputFile, o: SendDocumentOptions): Promise<Api.Message> {
-  const result = await getClient().invoke(
-    new Api.messages.SendMedia({
-      peer: inputPeer(ref),
-      media: new Api.InputMediaUploadedDocument({
-        file,
-        mimeType: o.mime,
-        attributes: o.attributes,
-        thumb: o.thumb,
-        forceFile: o.forceFile,
-      }),
-      message: o.caption,
-      randomId: generateRandomLong(),
-    }),
-  )
+export function sendDocument(ref: StorageRef, file: Api.TypeInputFile, o: SendDocumentOptions): Promise<Api.Message> {
+  const media = new Api.InputMediaUploadedDocument({ file, mimeType: o.mime, attributes: o.attributes, thumb: o.thumb, forceFile: o.forceFile })
+  return sendMedia(ref, media, o.caption)
+}
+
+/** Sends any media (uploaded, or an existing file by reference) and returns the new message. */
+export async function sendMedia(ref: StorageRef, media: Api.TypeInputMedia, caption: string): Promise<Api.Message> {
+  const result = await getClient().invoke(new Api.messages.SendMedia({ peer: inputPeer(ref), media, message: caption, randomId: generateRandomLong() }))
   const msg = extractMessages(result)[0]
   if (msg) return msg
   const id =

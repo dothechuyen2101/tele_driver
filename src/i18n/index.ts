@@ -22,8 +22,10 @@ void i18n
     detection: { order: ['localStorage', 'navigator'], lookupLocalStorage: STORAGE_KEY, caches: [] },
   })
 
-i18n.on('languageChanged', (lng) => document.documentElement.setAttribute('lang', lng))
-document.documentElement.setAttribute('lang', i18n.resolvedLanguage ?? i18n.language)
+if (typeof document !== 'undefined') {
+  i18n.on('languageChanged', (lng) => document.documentElement.setAttribute('lang', lng))
+  document.documentElement.setAttribute('lang', i18n.resolvedLanguage ?? i18n.language)
+}
 
 /** `auto` forgets the explicit choice and goes back to the browser language. */
 export function setLanguage(lng: Language | 'auto') {

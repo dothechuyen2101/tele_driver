@@ -4,8 +4,7 @@ import { fromBase64Url } from '@/lib/bytes'
 import { getClient } from './client'
 import { isRpc } from './errors'
 import { fetchMessages } from './messages'
-import type { StorageRef } from './peers'
-import { chatKeyOf } from './peers'
+import { chatKeyOf, type PeerRef } from './peers'
 import { strippedPhotoToJpg } from 'teleproto/Utils'
 import { Buffer } from 'teleproto/platform/index'
 
@@ -13,7 +12,7 @@ const MB = 1024 * 1024
 const cache = new Map<string, Api.Message>()
 
 /** Message objects carry the file reference needed to download; cached and refreshed on demand. */
-export async function getMessage(ref: StorageRef, msgId: number, refresh = false): Promise<Api.Message> {
+export async function getMessage(ref: PeerRef, msgId: number, refresh = false): Promise<Api.Message> {
   const key = `${chatKeyOf(ref)}:${msgId}`
   if (!refresh) {
     const hit = cache.get(key)
@@ -26,7 +25,7 @@ export async function getMessage(ref: StorageRef, msgId: number, refresh = false
   return msg
 }
 
-export function rememberMessage(ref: StorageRef, msg: Api.Message) {
+export function rememberMessage(ref: PeerRef, msg: Api.Message) {
   cache.set(`${chatKeyOf(ref)}:${msg.id}`, msg)
 }
 
@@ -34,7 +33,7 @@ export function rememberMessage(ref: StorageRef, msg: Api.Message) {
  * Streams bytes [offset, offset + length) of the media in a message. Telegram
  * downloads in aligned 1 MiB blocks; the extra bytes are trimmed here.
  */
-export async function* readMessageRange(ref: StorageRef, msgId: number, offset: number, length: number, signal?: AbortSignal) {
+export async function* readMessageRange(ref: PeerRef, msgId: number, offset: number, length: number, signal?: AbortSignal) {
   const end = offset + length
   let pos = offset
   for (let attempt = 0; pos < end; attempt++) {
@@ -81,7 +80,7 @@ function findSize(msg: Api.Message, type: string): Api.TypePhotoSize | undefined
 }
 
 /** Downloads (and caches in IndexedDB) the small preview image of a message. */
-export async function loadThumb(ref: StorageRef, msgId: number, thumbType: string, cacheKey: string): Promise<Blob | undefined> {
+export async function loadThumb(ref: PeerRef, msgId: number, thumbType: string, cacheKey: string): Promise<Blob | undefined> {
   const cached = await db.thumbs.get(cacheKey)
   if (cached) return cached.blob
   return withThumbSlot(async () => {

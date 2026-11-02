@@ -6,6 +6,8 @@ import { db, kvDel, wipeAll } from '@/db/db'
 import { delSecret, getSecret, hasPasscode, isUnlocked, lock, removePasscode, setPasscode, setSecret, unlock } from '@/crypto/secrets'
 import { clearFileKeyCache, exportVaultKey } from '@/crypto/vault'
 import { EMPTY_INDEX } from '@/drive/model'
+import { kickImports, stopImports } from '@/drive/imports/runner'
+import { runSubscriptions, startSubscriptionTimer, stopSubscriptionTimer } from '@/drive/imports/subscriptions'
 import { autoPurgeTrash } from '@/drive/ops'
 import { startLiveUpdates, syncStorage } from '@/drive/sync'
 import { restoreVaultKey } from '@/drive/vault'
@@ -21,6 +23,8 @@ let stopLive: (() => void) | null = null
 onConnectionStatus((conn) => useApp.setState({ conn }))
 
 function resetDrive() {
+  stopImports()
+  stopSubscriptionTimer()
   stopLive?.()
   stopLive = null
   clearFileKeyCache()
@@ -104,6 +108,10 @@ export async function startDrive() {
     stopLive = startLiveUpdates(storage, me.id)
     await syncStorage(storage)
     await autoPurgeTrash(30)
+    // Unfinished imports continue; followed chats catch up on what was posted meanwhile.
+    kickImports()
+    startSubscriptionTimer()
+    await runSubscriptions()
   } catch (err) {
     if (isRpc(err, ...SESSION_DEAD)) await handleDeadSession()
     else console.warn('drive start failed', err)

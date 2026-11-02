@@ -3,6 +3,7 @@ import { DndContext, DragOverlay, MouseSensor, pointerWithin, useSensor, useSens
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CloudUpload, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useMatch } from 'react-router'
 import { moveTo, startUpload, trashWithUndo } from '@/app/actions'
 import { db } from '@/db/db'
 import { buildIndex, type DriveItem } from '@/drive/model'
@@ -18,6 +19,7 @@ import { useTransfers } from '@/stores/transfers'
 import { useUi } from '@/stores/ui'
 import { chatKeyOf } from '@/telegram/peers'
 import { Dialogs } from '../dialogs/Dialogs'
+import { ImportPage } from '../import/ImportPage'
 import { Button } from '../ui/button'
 import { Browser } from './Browser'
 import { FileIcon } from './FileIcon'
@@ -117,6 +119,7 @@ function DragChip({ items }: { items: DriveItem[] }) {
 export function DriveApp() {
   const { t } = useTranslation()
   const folderId = useCurrentFolderId()
+  const onImportPage = !!useMatch('/import')
   const sidebarOpen = useUi((s) => s.sidebarOpen)
   const setSidebarOpen = useUi((s) => s.setSidebarOpen)
   const [dragging, setDragging] = useState<DriveItem[] | null>(null)
@@ -193,7 +196,7 @@ export function DriveApp() {
               </div>
             )}
             <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-background md:mr-3 md:mb-3 md:rounded-2xl md:border" {...dropHandlers}>
-              <Browser />
+              {onImportPage ? <ImportPage /> : <Browser />}
               <div
                 className={cn(
                   'pointer-events-none absolute inset-2 z-20 flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-primary bg-primary/10 text-primary backdrop-blur-[1px] transition-opacity',

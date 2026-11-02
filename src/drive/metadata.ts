@@ -6,6 +6,10 @@
  *   #td v=1 f=1234 n=report.pdf            file inside folder 1234
  *   #td_patch v=1 m=5678 f=1234            override fields of message 5678
  *   #td_vault v=1 s=… it=600000 w=…         end-to-end encryption vault
+ *   #td_sub v=1 c=c123 h=… n=… f=12 l=900    followed source (auto-import)
+ *
+ * Imported files carry `s=<origin>` (tg:<chat>:<msg> or gd:<fileId>) so an
+ * origin is never imported twice.
  *
  * Values are percent-escaped only where needed (%, whitespace) so names stay
  * readable in the Telegram app.
@@ -21,6 +25,7 @@ const PREFIX: Record<EntryKind, string> = {
   dir: '#td_dir',
   patch: '#td_patch',
   vault: '#td_vault',
+  sub: '#td_sub',
 }
 
 const KIND_BY_PREFIX = new Map(Object.entries(PREFIX).map(([k, v]) => [v, k as EntryKind]))
