@@ -6,6 +6,8 @@ dev-dist
 .env.*
 !.env.example
 .vercel
+# Google OAuth downloads contain a client secret; TeleDriver only needs the client ID.
+client_secret*.json
 *.tsbuildinfo
 .DS_Store
 Thumbs.db
