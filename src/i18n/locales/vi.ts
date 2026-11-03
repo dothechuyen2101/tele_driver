@@ -439,6 +439,7 @@ export const vi: Shape<typeof en> = {
     googleHttp: 'Google Drive trả về lỗi {{status}}.',
     rangeUnsupported: 'Google Drive không cho tải từng phần với file lớn này.',
     forwardsRestricted: 'Chat này hạn chế lưu nội dung.',
+    downloadNotStarted: 'Trình duyệt không bắt đầu tải xuống. Hãy tải lại trang rồi thử lại.',
     vaultLocked: 'Hãy mở khoá vault mã hoá trước.',
     vaultExists: 'Kho này đã có vault. Hãy mở khoá thay vì tạo mới.',
     noVault: 'Kho này chưa có vault mã hoá.',

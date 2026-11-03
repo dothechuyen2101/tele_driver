@@ -17,6 +17,8 @@ export interface StreamSource {
   onBytes?: (n: number) => void
   onDone?: () => void
   onError?: (err: unknown) => void
+  /** The consumer went away, e.g. the user cancelled the download in the browser. */
+  onCancel?: () => void
 }
 
 const sources = new Map<string, StreamSource>()
@@ -79,6 +81,7 @@ function serve(port: MessagePort, token: string, start: number, end: number | un
     } else if (m.data?.type === 'cancel') {
       ac.abort()
       void it.return?.(undefined)
+      src.onCancel?.()
       finish()
     }
   }
@@ -116,6 +119,59 @@ export function unregisterStream(token: string) {
   navigator.serviceWorker?.controller?.postMessage({ type: 'td-unregister', token })
 }
 
+/** How long the browser gets to start pulling a download before we call it failed. */
+const DOWNLOAD_START_TIMEOUT = 20_000
+
+/**
+ * Saves a stream to disk through the service worker.
+ *
+ * Chrome does not send `<a download>` requests through service workers (they
+ * would hit the network and save index.html instead), so the download is
+ * started by navigating a hidden iframe to a URL answered with
+ * `Content-Disposition: attachment`. A watchdog reports a download that never
+ * starts instead of leaving it at 0 B forever.
+ */
+export async function downloadViaServiceWorker(src: Omit<StreamSource, 'attachment'>) {
+  let opened = false
+  let settled = false
+  let token = ''
+  const frame = document.createElement('iframe')
+  frame.hidden = true
+  frame.setAttribute('aria-hidden', 'true')
+  const settle = () => {
+    if (settled) return false
+    settled = true
+    clearTimeout(watchdog)
+    if (token) unregisterStream(token)
+    // Give the browser a moment to finalize the file before dropping the frame.
+    setTimeout(() => frame.remove(), 10_000)
+    return true
+  }
+  const watchdog = setTimeout(() => {
+    if (!opened && settle()) src.onError?.(new Error('DOWNLOAD_NOT_STARTED'))
+  }, DOWNLOAD_START_TIMEOUT)
+  try {
+    const reg = await registerStream({
+      ...src,
+      attachment: true,
+      open: (start, end, signal) => {
+        opened = true
+        return src.open(start, end, signal)
+      },
+      onDone: () => settle() && src.onDone?.(),
+      onError: (err) => settle() && src.onError?.(err),
+      onCancel: () => settle() && src.onCancel?.(),
+    })
+    token = reg.token
+    frame.src = reg.url
+    document.body.appendChild(frame)
+  } catch (err) {
+    settle()
+    throw err
+  }
+}
+
+/** Saves a blob: or data: URL (never a service-worker URL, see downloadViaServiceWorker). */
 export function triggerDownload(url: string, name: string) {
   const a = document.createElement('a')
   a.href = url

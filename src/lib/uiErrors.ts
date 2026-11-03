@@ -35,6 +35,7 @@ const KNOWN: Record<string, string> = {
   RANGE_UNSUPPORTED: 'errors.rangeUnsupported',
   CHAT_FORWARDS_RESTRICTED: 'errors.forwardsRestricted',
   SHORT_READ: 'errors.fileTruncated',
+  DOWNLOAD_NOT_STARTED: 'errors.downloadNotStarted',
 }
 
 export function describeError(err: unknown): string {

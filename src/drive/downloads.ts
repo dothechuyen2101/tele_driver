@@ -1,6 +1,6 @@
 import { downloadZip as makeZip, predictLength } from 'client-zip'
 import { randomId } from '@/lib/bytes'
-import { registerStream, streamingAvailable, triggerDownload, unregisterStream } from '@/lib/streamBridge'
+import { downloadViaServiceWorker, streamingAvailable, triggerDownload } from '@/lib/streamBridge'
 import { errorMessage, isAbortError } from '@/lib/utils'
 import { useDrive } from '@/stores/app'
 import { useTransfers } from '@/stores/transfers'
@@ -28,6 +28,7 @@ function startTransfer(name: string, size: number, encrypted: boolean) {
     abort,
     bytes: (n: number) => useTransfers.getState().progress(id, n),
     done: () => useTransfers.getState().update(id, { status: 'done', done: size || undefined }),
+    canceled: () => useTransfers.getState().update(id, { status: 'canceled' }),
     fail: (err: unknown) => {
       if (abort.signal.aborted || isAbortError(err)) useTransfers.getState().update(id, { status: 'canceled' })
       else useTransfers.getState().update(id, { status: 'error', error: errorMessage(err) })
@@ -47,23 +48,16 @@ export async function downloadFile(file: DriveFile) {
   const t = startTransfer(file.name, file.size, !!file.enc)
   try {
     if (streamingAvailable()) {
-      const { url, token } = await registerStream({
+      await downloadViaServiceWorker({
         name: file.name,
         mime: file.mime,
         size: file.size,
-        attachment: true,
         open: (start, end, signal) => readFileRange(file, start, end ?? file.size, anySignal(signal, t.abort.signal)),
         onBytes: t.bytes,
-        onDone: () => {
-          t.done()
-          unregisterStream(token)
-        },
-        onError: (err) => {
-          t.fail(err)
-          unregisterStream(token)
-        },
+        onDone: t.done,
+        onError: t.fail,
+        onCancel: t.canceled,
       })
-      triggerDownload(url, file.name)
     } else {
       if (file.size > BLOB_FALLBACK_LIMIT) throw new Error('SW_REQUIRED')
       saveBlob(await readFileBlob(file, t.abort.signal, t.bytes), file.name)
@@ -134,11 +128,10 @@ export async function downloadAsZip(items: DriveItem[], zipName: string) {
     const body = response.body!
     if (streamingAvailable()) {
       const reader = body.getReader()
-      const { url, token } = await registerStream({
+      await downloadViaServiceWorker({
         name: zipName,
         mime: 'application/zip',
         size: length,
-        attachment: true,
         open: () => ({
           next: async () => {
             const r = await reader.read()
@@ -150,16 +143,13 @@ export async function downloadAsZip(items: DriveItem[], zipName: string) {
           },
         }),
         onBytes: t.bytes,
-        onDone: () => {
-          t.done()
-          unregisterStream(token)
-        },
-        onError: (err) => {
-          t.fail(err)
-          unregisterStream(token)
+        onDone: t.done,
+        onError: t.fail,
+        onCancel: () => {
+          t.abort.abort()
+          t.canceled()
         },
       })
-      triggerDownload(url, zipName)
     } else {
       if (length > BLOB_FALLBACK_LIMIT) throw new Error('SW_REQUIRED')
       const blob = await new Response(body).blob()

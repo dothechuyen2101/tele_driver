@@ -458,6 +458,7 @@ export const en = {
     googleHttp: 'Google Drive answered with error {{status}}.',
     rangeUnsupported: 'Google Drive did not allow partial downloads for this large file.',
     forwardsRestricted: 'Saving content is restricted in that chat.',
+    downloadNotStarted: 'The browser did not start the download. Reload the page and try again.',
     vaultLocked: 'Unlock the encrypted vault first.',
     vaultExists: 'This storage already has a vault. Unlock it instead.',
     noVault: 'This storage has no encryption vault yet.',
